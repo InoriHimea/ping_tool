@@ -1,10 +1,13 @@
 package org.inori.app.util;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpRequest;
 import org.apache.http.NoHttpResponseException;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
@@ -15,19 +18,24 @@ import org.apache.http.conn.socket.LayeredConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.util.EntityUtils;
 import org.inori.app.model.Contacts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.*;
+import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
+import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.Map;
 
 public class HttpClientUtils {
@@ -110,8 +118,26 @@ public class HttpClientUtils {
 
        try {
            sslContext = SSLContext.getInstance(SSLConnectionSocketFactory.TLS);
+
+           sslContext.init(null, new TrustManager[]{new X509TrustManager() {
+               @Override
+               public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+
+               }
+
+               @Override
+               public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+
+               }
+
+               @Override
+               public X509Certificate[] getAcceptedIssuers() {
+                   return new X509Certificate[0];
+               }
+           }}, null);
+
            sslConnectionSocketFactory = new SSLConnectionSocketFactory(sslContext, NoopHostnameVerifier.INSTANCE);
-       } catch (NoSuchAlgorithmException e) {
+       } catch (NoSuchAlgorithmException | KeyManagementException e) {
            logger.error("创建失败,{}", e.getMessage(), e);
            sslConnectionSocketFactory = null;
        }
@@ -120,24 +146,57 @@ public class HttpClientUtils {
    }
 
     /**
-     * 发送post请求
+     * 发送get请求
      * @param url
-     * @param params
      */
-    public void post(String url, Map<String, Object> params) {
-        HttpPost post = new HttpPost(url);
+    public String get(String url) {
+        HttpGet get = new HttpGet(url);
 
+        get.addHeader("Host", url.substring(url.indexOf("//") + 2, url.indexOf("/", url.indexOf("//") + 2)));
+        get.addHeader("User-Agent", Contacts.USER_AGENT);
+        get.addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+        get.addHeader("Accept-Language", "zh-TW,zh;q=0.8,zh-HK;q=0.6,en-US;q=0.4,en;q=0.2");
+        get.addHeader("Connection", "keep-alive");
+        get.addHeader("Upgrade-Insecure-Requests", "1");
+        get.addHeader("Pragma", "no-cache");
+        get.addHeader("Cache-Control", "no-cache");
+        get.addHeader("TE", "Trailers");
+
+        return execute(get);
     }
 
-    /**
-     * 发送post请求，自定义文件头
-     * @param url
-     * @param params
-     * @param header
-     */
-   public void post(String url, Map<String, Object> params, Map<String, Object> header) {
+    private String execute(HttpRequestBase request) {
+        HttpClientContext context = HttpClientContext.create();
+        CloseableHttpResponse response = null;
+        String content = "error";
 
-   }
+        try {
+            response = client.execute(request, context);
+            HttpEntity entity = response.getEntity();
+
+            if (entity != null) {
+                Charset charset = ContentType.getOrDefault(entity).getCharset();
+                content = EntityUtils.toString(entity, charset);
+                EntityUtils.consume(entity);
+            }
+        } catch (IOException e) {
+            logger.error("{}", e.getMessage(), e);
+        } finally {
+            try {
+                if (response != null) {
+                    response.close();
+                }
+            } catch (IOException e) {
+                logger.error("关闭响应异常, {}", e.getMessage(), e);
+            }
+
+            if (request != null) {
+                request.releaseConnection();
+            }
+        }
+
+        return content;
+    }
 
     /**
      * 获取连接池中的存在的链接数

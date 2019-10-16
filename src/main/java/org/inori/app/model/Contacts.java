@@ -31,4 +31,19 @@ public class Contacts {
      * 浏览器AGENT
      */
     public static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36";
+
+    /**
+     * 解析地址所使用的API(当前为固定固定的解析服务)
+     */
+    public static final String DEFAULT_API = "https://www.whatsmydns.net/api/check?server=#{serverId}&type=#{type}&query=#{host}&_token=#{token}";
+
+    /**
+     * 获取必要参数的URL并通过Jsoup解析
+     */
+    public static final String GET_PARAM_URL = "https://www.whatsmydns.net/##{type}/#{host}";
+
+    /**
+     * hosts文件的路径
+     */
+    public static final String HOSTS_PATH = "C:\\Windows\\System32\\drivers\\etc\\hosts";
 }
