@@ -45,7 +45,7 @@ public class FilesUtils {
         logger.info("开始写入文件，模式为{}", append ? "追加" : "覆盖");
 
         try {
-            FileUtils.writeLines(target, lines, "UTF-8", append);
+            FileUtils.writeLines(target, "UTF-8", lines, "\r\n", append);
             logger.info("写入成功！");
         } catch (IOException e) {
             logger.error("写入失败，{}", e.getMessage(), e);

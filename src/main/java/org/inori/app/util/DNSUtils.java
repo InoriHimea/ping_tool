@@ -1,13 +1,17 @@
 package org.inori.app.util;
 
+import net.sf.cglib.core.CollectionUtils;
+import net.sf.cglib.core.Transformer;
 import org.inori.app.main.MainApp;
 import org.inori.app.model.Contacts;
 import org.inori.app.thread.ExecutorServiceManager;
-import org.inori.app.thread.NamedCallable;
 import org.inori.app.thread.NamedRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -43,7 +47,7 @@ public class DNSUtils {
                     ipSet.addAll(Arrays.stream(result.split("<br />")).filter(string -> ! string.isEmpty() && ! string.equals("error")).collect(Collectors.toSet()));
                     latch.countDown();
                 }
-            });
+            }.setName(typeName + "[" + id + "]请求"));
         }
 
         logger.info("等待所有{}的解析完成", typeName);
@@ -54,6 +58,37 @@ public class DNSUtils {
         }
 
         logger.info("通过API解析{}的地址完成", typeName);
+        return ipSet;
+    }
+
+    public static Set<String> queryIPByDNS(String dnsHost, String type) {
+        Set<String> ipSet = new LinkedHashSet<>();
+
+        System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
+        System.setProperty("sun.net.spi.nameservice.nameservers", dnsHost);
+
+        try {
+            InetAddress[] allIP = InetAddress.getAllByName(MainApp.TARGET_HOST_NAME);
+            List<InetAddress> ipList = Arrays.asList(allIP);
+
+            switch (type) {
+                case "A":
+                    ipSet.addAll(ipList.stream()
+                            .map(InetAddress::getHostAddress)
+                            .filter(ip -> ! IPUtils.isIPv6(ip))
+                            .collect(Collectors.toSet()));
+                    break;
+                case "AAAA":
+                    ipSet.addAll(ipList.stream()
+                            .map(InetAddress::getHostAddress)
+                            .filter(ip -> IPUtils.isIPv6(ip))
+                            .collect(Collectors.toSet()));
+                    break;
+            }
+        } catch (UnknownHostException e) {
+            logger.error("未知的主机异常", e);
+        }
+
         return ipSet;
     }
 }

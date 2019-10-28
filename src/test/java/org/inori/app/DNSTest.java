@@ -1,6 +1,8 @@
 package org.inori.app;
 
+import org.inori.app.main.MainApp;
 import org.inori.app.model.PingModel;
+import org.inori.app.util.DNSUtils;
 import org.inori.app.util.JacksonUtils;
 import org.inori.app.util.PingUtils;
 import org.junit.jupiter.api.Test;
@@ -25,15 +27,12 @@ class DNSTest {
     private static final Logger logger = LoggerFactory.getLogger(DNSTest.class);
 
     @Test
-    void testDNS() {
-
-        try {
-            InetAddress[] allByName = Inet6Address.getAllByName("www.qq.com");
-            for (InetAddress inetAddress : allByName) {
-                logger.info(inetAddress.getHostAddress());
-            }
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
+    void testDNS() throws UnknownHostException {
+        /*Set<String> ipSet = DNSUtils.queryIPByDNS("210.6.157.52", "A");
+        ipSet.forEach(System.out::println);*/
+        InetAddress[] allByName = InetAddress.getAllByName(MainApp.TARGET_HOST_NAME);
+        for (InetAddress inetAddress : allByName) {
+            System.out.println(inetAddress.getHostAddress());
         }
     }
 

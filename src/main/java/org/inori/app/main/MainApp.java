@@ -47,54 +47,20 @@ public class MainApp {
         logger.info("参数获取完毕");
 
         logger.info("开始通过API解析DNS对应IPv4和IPv6");
-        List<Set<String>> ips = resolvingDns(param);
-        logger.info("解析完毕");
+        Vector<String> hosts = resolvingDns(param);
+        logger.info("解析并找到最低延时完成");
 
         logger.info("开始解析为对应host记录");
-        ExecutorService dnsService = ExecutorServiceManager.getFixedExecutorService("DNS解析", 2);
 
-        Vector<Future<String>> futureVector = new Vector<>(2);
-        for (Set<String> ip : ips) {
-            Future<String> ipFuture = dnsService.submit(new NamedCallable<String>() {
-
-                @Override
-                public String runAfter() {
-                    return pingIPs2SearchMinDelay(ip);
-                }
-            });
-            futureVector.add(ipFuture);
-        }
-
-        List<String> hostsList = new LinkedList<>();
-        CountDownLatch latch = new CountDownLatch(2);
-
-        for (Future<String> future : futureVector) {
-            try {
-                hostsList.add(future.get());
-            } catch (InterruptedException e) {
-                logger.error("中断异常", e);
-            } catch (ExecutionException e) {
-                logger.error("执行异常", e);
-            }
-
-            latch.countDown();
-        }
-
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            logger.error("{}", e);
-        }
-
-        logger.info("把最低延时的Hosts记录【{}】写入Hosts中", hostsList);
-        FilesUtils.writeContent2File(hostsList, new File(Contacts.HOSTS_PATH), true);
+        logger.info("把最低延时的Hosts记录【{}】写入Hosts中", hosts);
+        FilesUtils.writeContent2File(hosts, new File(Contacts.HOSTS_PATH), true);
 
         logger.info("程序执行完毕！");
         System.exit(0);
     }
 
     private static String pingIPs2SearchMinDelay(Set<String> ipSet) {
-        List<PingModel> pingModelList = new LinkedList<>();
+        final List<PingModel> pingModelList = new LinkedList<>();
         ExecutorService pingService = ExecutorServiceManager.getFixedExecutorService("Ping任务", 4);
 
         final AtomicInteger success = new AtomicInteger(0);
@@ -106,8 +72,13 @@ public class MainApp {
                 @Override
                 public void runAfter() throws Exception {
                     try {
-                        pingModelList.add(PingUtils.ping(ip, 4));
-                        success.getAndIncrement();
+                        PingModel ping = PingUtils.ping(ip, 4);
+                        if (ping != null) {
+                            pingModelList.add(ping);
+                            success.getAndIncrement();
+                        } else {
+                            error.getAndIncrement();
+                        }
                     } catch (IOException e) {
                         logger.error("ping[{}]执行异常", ip, e);
                         error.getAndIncrement();
@@ -133,8 +104,12 @@ public class MainApp {
         logger.info("解析完毕，成功{}, 失败{}，总大小{}", success.get(), error.get(), ipSet.size());
         logger.info("处理后的结果集大小{}", pingModelList.size());
 
+        if (pingModelList.size() == 0) {
+            return null;
+        }
+
         logger.info("将成功的排序后去最小值！");
-        logger.info("a -> {}", JacksonUtils.toDefaultPrettyJson(pingModelList));
+        logger.info("结果 -> {}", JacksonUtils.toDefaultPrettyJson(pingModelList));
 
         List<PingModel> sortedList = pingModelList.stream().sorted((o1, o2) -> {
             logger.debug("o1 -> {}", JacksonUtils.toDefaultPrettyJson(o1));
@@ -164,7 +139,7 @@ public class MainApp {
                 .append(TARGET_HOST_NAME).toString();
     }
 
-    private static List<Set<String>> resolvingDns(Map<String, Object> param) {
+    private static Vector<String> resolvingDns(Map<String, Object> param) {
         ExecutorService dnsService = ExecutorServiceManager.getFixedExecutorService("DNS解析", 2);
 
         Future<Set<String>> ipv4Set = dnsService.submit(new NamedCallable<Set<String>>() {
@@ -182,20 +157,38 @@ public class MainApp {
             }
         }.setName("IPv6解析"));
 
-        List<Set<String>> result = new LinkedList<>();
+        Vector<String> hostVector = new Vector<>(2);
         try {
-            Set<String> ipv4 = ipv4Set.get();
-            Set<String> ipv6 = ipv6Set.get();
+            final Set<String> ipv4 = ipv4Set.get();
+            final Set<String> ipv6 = ipv6Set.get();
 
-            result.add(ipv4);
-            result.add(ipv6);
+            Future<String> ipv4Relay = dnsService.submit(new NamedCallable<String>() {
+
+                @Override
+                public String runAfter() {
+                    return pingIPs2SearchMinDelay(ipv4);
+                }
+            }.setName("IPv4延时解析"));
+            Future<String> ipv6Relay = dnsService.submit(new NamedCallable<String>() {
+
+                @Override
+                public String runAfter() {
+                    return pingIPs2SearchMinDelay(ipv6);
+                }
+            }.setName("IPv6延时解析"));
+
+            String ipv4Host = ipv4Relay.get();
+            String ipv6Host = ipv6Relay.get();
+
+            hostVector.add(ipv4Host);
+            hostVector.add(ipv6Host);
         } catch (InterruptedException e) {
             logger.error("执行中断", e);
         } catch (ExecutionException e) {
             logger.error("任务错误", e);
         }
 
-        return result;
+        return hostVector;
     }
 
     /**
