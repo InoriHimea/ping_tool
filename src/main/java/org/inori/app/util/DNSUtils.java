@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 public class DNSUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(DNSUtils.class);
+    private static final HttpClientUtils httpClient = new HttpClientUtils();
 
     public static Set<String> resolvingDNSByAPI(Map<String, Object> param, String type) {
         String typeName = type.equals("A") ? "IPv4" : "IPv6";
@@ -42,7 +43,7 @@ public class DNSUtils {
                     String tempUrl = url.replace("#{serverId}", id);
 
                     logger.info("url[{}]为本次访问地址", tempUrl);
-                    String result = MainApp.httpClient.get(tempUrl);
+                    String result = httpClient.get(tempUrl);
                     logger.info("本次请求到的结果{}", result);
                     ipSet.addAll(Arrays.stream(result.split("<br />")).filter(string -> ! string.isEmpty() && ! string.equals("error")).collect(Collectors.toSet()));
                     latch.countDown();

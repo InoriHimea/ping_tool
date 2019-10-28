@@ -42,8 +42,9 @@ public class HttpClientUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpClientUtils.class);
 
-    private static PoolingHttpClientConnectionManager manager = null;
-    private static CloseableHttpClient client = null;
+    private static HttpClientUtils httpClient;
+    private static PoolingHttpClientConnectionManager manager;
+    private static CloseableHttpClient client;
 
    static {
        ConnectionSocketFactory socketFactory = PlainConnectionSocketFactory.getSocketFactory();
