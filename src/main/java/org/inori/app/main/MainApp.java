@@ -16,10 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -41,6 +38,8 @@ public class MainApp {
         logger.info("开始获取Host对应的IP");
         ExecutorService hostQuery = ExecutorServiceManager.getCachedExecutorService("Host解析组");
         GlobalDNS globalDNS = GlobalDNS.getInstance();
+
+        TimeCounter counter = new TimeCounter().initStart(TimeUnit.SECONDS);
 
         final Set<String> ipv4Set = new LinkedHashSet<>();
         final Set<String> ipv6Set = new LinkedHashSet<>();
@@ -73,6 +72,9 @@ public class MainApp {
                 logger.error("错误", e);
             }
         }
+
+        counter = counter.initEnd("执行多次Host解析所花费的时间：").endTimeCount();
+        logger.info("{}", counter.toString());
 
         logger.info("获取最小延时组合");
         Vector<String> lowDelayIPs = IPUtils.getLowDelayIP(ipv4Set, ipv6Set);

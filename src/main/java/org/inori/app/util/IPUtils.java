@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.Inet6Address;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -124,14 +123,14 @@ public final class IPUtils {
             logger.debug("o2 -> {}", JacksonUtils.toDefaultPrettyJson(o2));
 
             if (o1.getLostPercent() < o2.getLostPercent()) {
-                return 1;
-            } else if (o1.getLostPercent() > o2.getLostPercent()) {
                 return -1;
+            } else if (o1.getLostPercent() > o2.getLostPercent()) {
+                return 1;
             } else {
                 if (o1.getAvgTime() < o2.getAvgTime()) {
-                    return 1;
-                } else if (o1.getAvgTime() > o2.getAvgTime()) {
                     return -1;
+                } else if (o1.getAvgTime() > o2.getAvgTime()) {
+                    return 1;
                 } else {
                     return 0;
                 }

@@ -1,13 +1,12 @@
 package org.inori.app.thread;
 
+import org.inori.app.util.FilesUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.*;
 
 public class ExecutorServiceManager {
 
@@ -55,5 +54,33 @@ public class ExecutorServiceManager {
         }
 
         return target;
+    }
+
+    /**
+     * Fork/Join线程
+     * @param parallelism
+     * @param groupName
+     * @return
+     */
+    public static ExecutorService getForkWorkerJoinServer(int parallelism, String groupName) {
+        ExecutorService service = new ForkJoinPool(
+                parallelism, new PingForkJoinWorkerThreadFactory(groupName),
+                null, true
+        );
+
+        ExecutorService target = executorServiceMap.putIfAbsent(groupName, service);
+        //为null表示原来没有，否则返回已有对象
+        if (target == null) {
+            target = service;
+        } else {
+            service.shutdown();
+            logger.debug("关闭{}", service.isShutdown());
+        }
+
+        return target;
+    }
+
+    public static void main(String[] args) {
+        FilesUtils.getDirSize(new File(""));
     }
 }

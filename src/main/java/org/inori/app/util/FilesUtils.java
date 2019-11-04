@@ -1,6 +1,8 @@
 package org.inori.app.util;
 
 import org.apache.commons.io.FileUtils;
+import org.inori.app.thread.ExecutorServiceManager;
+import org.inori.app.thread.NamedCallable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 /**
  * @Author InoriHimea
@@ -67,5 +70,16 @@ public class FilesUtils {
         } catch (IOException e) {
             logger.error("写入失败，{}", e.getMessage(), e);
         }
+    }
+
+    public static void getDirSize(File dirPath) {
+        ExecutorService jisuan = ExecutorServiceManager.getForkWorkerJoinServer(4, "jisuan");
+        jisuan.submit(new NamedCallable<Integer>() {
+
+            @Override
+            public Integer runAfter() throws Exception {
+                return 3;
+            }
+        }.setName("haxi"));
     }
 }
